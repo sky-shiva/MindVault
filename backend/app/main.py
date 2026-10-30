@@ -5,7 +5,7 @@ from app.core.database import Base, engine
 from app.api import (
     auth, subjects, topics, notes, tags,
     recall, revision, flashcards, analytics,
-    goals, search, ai
+    goals, search, ai, ai_settings
 )
 
 # Initialize database schemas
@@ -53,6 +53,7 @@ app.include_router(analytics.router, prefix=settings.API_V1_STR)
 app.include_router(goals.router, prefix=settings.API_V1_STR)
 app.include_router(search.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
+app.include_router(ai_settings.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

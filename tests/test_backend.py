@@ -163,3 +163,104 @@ def test_data_isolation():
     token_b = login_b.json()["access_token"]
     notes_b = client.get("/api/v1/notes/", headers={"Authorization": f"Bearer {token_b}"}).json()
     assert len(notes_b) == 0
+
+
+def test_user_configurable_ai_settings_and_encryption():
+    # Login user
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        json={"email": "scholar@mindvault.edu", "password": "RetentionMastery2026!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Fetch initial AI settings
+    get_res = client.get("/api/v1/ai/settings", headers=headers)
+    assert get_res.status_code == 200
+    initial_data = get_res.json()
+    assert "available_providers" in initial_data
+    assert "supported_models" in initial_data
+    assert "gemini" in initial_data["supported_models"]
+    assert "openai" in initial_data["supported_models"]
+
+    # 2. Save user-configured API key (Gemini)
+    raw_key = "AIzaSyFakeTestKeyForEncryptionValidation123456"
+    save_res = client.post(
+        "/api/v1/ai/settings",
+        headers=headers,
+        json={
+            "provider": "gemini",
+            "model_name": "gemini-1.5-flash",
+            "api_key": raw_key
+        }
+    )
+    assert save_res.status_code == 200
+    saved_data = save_res.json()
+    assert saved_data["has_key"] is True
+    # Security check: verify raw key is NEVER returned in response!
+    assert raw_key not in str(saved_data)
+    # Masked representation present
+    assert saved_data["masked_key"] == "AIza••••••••3456"
+
+    # 3. Verify database storage is encrypted at rest (not plaintext)
+    from app.models.ai_setting import UserAISetting
+    from app.models.user import User
+    from app.core.encryption import decrypt_secret
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "scholar@mindvault.edu").first()
+        setting = db.query(UserAISetting).filter(UserAISetting.user_id == user.id).first()
+        assert setting is not None
+        # Must be ciphertext
+        assert setting.encrypted_api_key != raw_key
+        assert not setting.encrypted_api_key.startswith("AIza")
+        # Decryption should reproduce the original raw key
+        assert decrypt_secret(setting.encrypted_api_key) == raw_key
+    finally:
+        db.close()
+
+    # 4. Test connection endpoint with invalid key format
+    test_res = client.post(
+        "/api/v1/ai/settings/test",
+        headers=headers,
+        json={"provider": "openai", "api_key": "invalid-key"}
+    )
+    assert test_res.status_code == 200
+    assert test_res.json()["success"] is False
+
+    # 5. Delete saved key
+    del_res = client.delete("/api/v1/ai/settings/key", headers=headers)
+    assert del_res.status_code == 200
+    verify_res = client.get("/api/v1/ai/settings", headers=headers)
+    assert verify_res.json()["has_key"] is False
+    assert verify_res.json()["masked_key"] is None
+
+def test_ai_chat_assistant_and_isolation():
+    # User A chat
+    login_a = client.post(
+        "/api/v1/auth/login",
+        json={"email": "scholar@mindvault.edu", "password": "RetentionMastery2026!"}
+    )
+    token_a = login_a.json()["access_token"]
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+
+    chat_res = client.post(
+        "/api/v1/ai/chat",
+        headers=headers_a,
+        json={"message": "What is memoization?"}
+    )
+    assert chat_res.status_code == 200
+    chat_data = chat_res.json()
+    assert "reply" in chat_data
+    assert "provider_used" in chat_data
+
+    # User B cannot see User A's AI settings
+    login_b = client.post(
+        "/api/v1/auth/login",
+        json={"email": "student_b@mindvault.edu", "password": "SecurePassword123!"}
+    )
+    token_b = login_b.json()["access_token"]
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    settings_b = client.get("/api/v1/ai/settings", headers=headers_b).json()
+    assert settings_b["has_key"] is False

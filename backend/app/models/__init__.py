@@ -8,6 +8,7 @@ from app.models.revision import RevisionSchedule
 from app.models.recall import RecallSession, RecallAttempt
 from app.models.flashcard import Flashcard
 from app.models.goal import LearningGoal
+from app.models.ai_setting import UserAISetting
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "RecallAttempt",
     "Flashcard",
     "LearningGoal",
+    "UserAISetting",
 ]

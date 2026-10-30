@@ -27,3 +27,4 @@ class User(Base):
     recall_sessions = relationship("RecallSession", back_populates="user", cascade="all, delete-orphan")
     revision_schedules = relationship("RevisionSchedule", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("LearningGoal", back_populates="user", cascade="all, delete-orphan")
+    ai_setting = relationship("UserAISetting", back_populates="user", uselist=False, cascade="all, delete-orphan")

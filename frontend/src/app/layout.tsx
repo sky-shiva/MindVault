@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 
 export const metadata: Metadata = {
   title: "MindVault — Complete Learning & Knowledge Retention Platform",
@@ -14,9 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-charcoal-950 text-gray-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white">
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="bg-charcoal-950 text-gray-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white transition-colors duration-150">
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
