@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  output: "standalone",
+
+  webpack: (config) => {
+    config.resolve.alias["@"] = `${process.cwd()}/src`;
+    return config;
+  },
 };
 
 export default nextConfig;
